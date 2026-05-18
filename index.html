@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+<link rel="script" href="script.js">
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a73e8">
+</head>
+<body>
+<div class="container">
+  <div class="tabs">
+    <div class="tab active" data-tab="enter">Enter Data</div>
+    <div class="tab" data-tab="preview">Preview Data</div>
+  </div>
+
+  <!-- ====== ENTER TAB ====== -->
+  <div id="enter-tab" class="tab-content active">
+    <label>Date</label>
+    <input type="date" id="date" />
+
+    <label>Type</label>
+    <select id="type">
+      <option value="expense">Expense</option>
+      <option value="income">Income</option>
+    </select>
+
+    <label>Mode</label>
+    <select id="mode">
+      <option value="cash">Cash</option>
+      <option value="online">Online</option>
+      <option value="bank">Bank</option>
+    </select>
+
+    <label>Category</label>
+    <select id="category">
+      <option value="food">Food</option>
+      <option value="fuel">Fuel</option>
+      <option value="salary">Salary</option>
+      <option value="shopping">Shopping</option>
+      <option value="bills">Bills</option>
+      <option value="other">Other</option>
+    </select>
+
+    <label>Items (one per line: item = price)</label>
+    <textarea id="items-input" placeholder="Burger = 550&#10;Tea = 80"></textarea>
+    <div class="live-total">Total: <span id="live-total">0.00</span></div>
+
+    <div class="quick-add">
+      <input type="text" id="quick-name" placeholder="Item name" />
+      <input type="number" id="quick-price" placeholder="Price" step="0.01" min="0" />
+      <button id="quick-add-btn">Add Item</button>
+    </div>
+
+    <button id="save-btn">Save Entry</button>
+  </div>
+
+  <!-- ====== PREVIEW TAB ====== -->
+  <div id="preview-tab" class="tab-content">
+    <input type="text" class="search-box" id="search-input" placeholder="Search..." />
+    <div class="filter-bar">
+      <select id="filter-type">
+        <option value="">All Types</option>
+        <option value="expense">Expense</option>
+        <option value="income">Income</option>
+      </select>
+      <select id="filter-mode">
+        <option value="">All Modes</option>
+        <option value="cash">Cash</option>
+        <option value="online">Online</option>
+        <option value="bank">Bank</option>
+      </select>
+      <select id="filter-category">
+        <option value="">All Categories</option>
+        <option value="food">Food</option>
+        <option value="fuel">Fuel</option>
+        <option value="salary">Salary</option>
+        <option value="shopping">Shopping</option>
+        <option value="bills">Bills</option>
+        <option value="other">Other</option>
+      </select>
+      <input type="date" id="filter-date" />
+    </div>
+    <div id="entries-container"></div>
+    <button id="export-json-btn">Export as JSON</button>
+    <button id="sync-btn" class="danger-btn">Sync to Google Sheets</button>
+    <div id="sync-status" class="sync-status"></div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
