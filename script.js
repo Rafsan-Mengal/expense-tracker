@@ -405,12 +405,21 @@ document.getElementById('import-json-input').addEventListener('change', async (e
 
 // ========== Google Sheets Sync (Direct API) ==========
 document.getElementById('sync-btn').addEventListener('click', async () => {
-  if (!isConfigured()) {
-    syncStatus.textContent = 'Configure Sheet ID & API Key first!';
-    syncStatus.style.color = 'red';
-    document.getElementById('settings-body').style.display = 'block';
-    return;
+ if (!isConfigured()) {
+
+  updateSettingsUI();
+
+  syncStatus.textContent = 'Configure Sheet ID & API Key first!';
+  syncStatus.style.color = 'red';
+
+  const settingsBody = document.getElementById('settings-body');
+
+  if (settingsBody) {
+    settingsBody.style.display = 'block';
   }
+
+  return;
+}
 
   if (!navigator.onLine) {
     syncStatus.textContent = 'You are offline.';
