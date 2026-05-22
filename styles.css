@@ -40,7 +40,7 @@ button:hover { background: #1557b0; }
 .danger-btn:hover { background: #b71c1c; }
 
 .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-.filter-bar input, .filter-bar select { flex: 1; min-width: 120px; }
+.filter-bar input, .filter-bar select { flex: 1; min-width: 100px; }
 .entry-card {
   background: #fafafa; border: 1px solid #eee;
   border-radius: 8px; padding: 12px; margin-bottom: 10px;
@@ -58,4 +58,14 @@ button:hover { background: #1557b0; }
 .quick-add input { flex: 1; }
 .quick-add button { width: auto; margin: 0; }
 .sync-status { margin-top: 8px; font-size: 14px; color: green; }
-#export-json-btn { margin-bottom: 12px; }
+.action-row {
+  display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap;
+}
+.import-btn {
+  background: #4caf50; color: white; padding: 10px 16px; border-radius: 8px;
+  cursor: pointer; font-size: 14px; display: inline-block;
+}
+.small-btn {
+  background: #ff9800; color: white; padding: 8px 12px; border-radius: 8px;
+  font-size: 14px; width: auto;
+}
