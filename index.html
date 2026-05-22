@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Expense Tracker</title>
   <link rel="stylesheet" href="styles.css">
-<link rel="script" href="script.js">
-  <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1a73e8">
 </head>
@@ -17,7 +15,7 @@
     <div class="tab" data-tab="preview">Preview Data</div>
   </div>
 
-  <!-- ====== ENTER TAB ====== -->
+  <!-- ENTER TAB -->
   <div id="enter-tab" class="tab-content active">
     <label>Date</label>
     <input type="date" id="date" />
@@ -26,7 +24,12 @@
     <select id="type">
       <option value="expense">Expense</option>
       <option value="income">Income</option>
+      <option value="adjustment">Adjustment</option>
     </select>
+
+    <label>Party (who is this for?)</label>
+    <input type="text" id="party" placeholder="e.g. Party A, Client X" list="party-suggestions" />
+    <datalist id="party-suggestions"></datalist>
 
     <label>Mode</label>
     <select id="mode">
@@ -55,10 +58,16 @@
       <button id="quick-add-btn">Add Item</button>
     </div>
 
+    <label>Cash Notes (serial numbers, one per line)</label>
+    <textarea id="cash-notes" placeholder="AB1234567&#10;CD8877665" rows="2"></textarea>
+
+    <label>Additional Note</label>
+    <input type="text" id="general-note" placeholder="Any extra info..." />
+
     <button id="save-btn">Save Entry</button>
   </div>
 
-  <!-- ====== PREVIEW TAB ====== -->
+  <!-- PREVIEW TAB -->
   <div id="preview-tab" class="tab-content">
     <input type="text" class="search-box" id="search-input" placeholder="Search..." />
     <div class="filter-bar">
@@ -66,6 +75,7 @@
         <option value="">All Types</option>
         <option value="expense">Expense</option>
         <option value="income">Income</option>
+        <option value="adjustment">Adjustment</option>
       </select>
       <select id="filter-mode">
         <option value="">All Modes</option>
@@ -82,10 +92,19 @@
         <option value="bills">Bills</option>
         <option value="other">Other</option>
       </select>
+      <input type="text" id="filter-party" placeholder="Party" />
       <input type="date" id="filter-date" />
     </div>
     <div id="entries-container"></div>
-    <button id="export-json-btn">Export as JSON</button>
+
+    <div class="action-row">
+      <button id="export-json-btn">Export JSON</button>
+      <label class="import-btn">
+        Import JSON
+        <input type="file" id="import-json-input" accept=".json" hidden />
+      </label>
+      <button id="reset-sync-btn" class="small-btn">Reset Sheet URL</button>
+    </div>
     <button id="sync-btn" class="danger-btn">Sync to Google Sheets</button>
     <div id="sync-status" class="sync-status"></div>
   </div>
