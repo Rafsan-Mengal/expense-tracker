@@ -1,3 +1,5 @@
+// ========== Expense Tracker v3 - Complete Script ==========
+
 // ========== IndexedDB ==========
 const DB_NAME = 'ExpenseTrackerDB';
 const DB_VERSION = 3;
@@ -27,7 +29,7 @@ function addTransaction(tx) {
   return new Promise((resolve, reject) => {
     const t = db.transaction('transactions', 'readwrite');
     const store = t.objectStore('transactions');
-    const req = store.add({ ...tx, isSynced: tx.isSynced !== undefined ? tx.isSynced : false });
+    const req = store.add({ ...tx, isSynced: false });
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -82,6 +84,26 @@ function parseItems(text) {
 
 function formatCents(c) { return (c/100).toFixed(2); }
 
+// ========== Settings Management ==========
+const SETTINGS_KEY = 'expense_tracker_settings';
+
+function getSettings() {
+  const stored = localStorage.getItem(SETTINGS_KEY);
+  if (stored) {
+    try { return JSON.parse(stored); } catch { return {}; }
+  }
+  return {};
+}
+
+function saveSettings(settings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function isConfigured() {
+  const s = getSettings();
+  return !!(s.sheetId && s.apiKey);
+}
+
 // ========== UI Elements ==========
 const itemsInput = document.getElementById('items-input');
 const liveTotal = document.getElementById('live-total');
@@ -99,28 +121,116 @@ const partySuggestions = document.getElementById('party-suggestions');
 const cashNotes = document.getElementById('cash-notes');
 const generalNote = document.getElementById('general-note');
 
-// Tabs
+// ========== Tabs ==========
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById(tab.dataset.tab+'-tab').classList.add('active');
-    if (tab.dataset.tab === 'preview') loadEntries();
+    if (tab.dataset.tab === 'preview') {
+      loadEntries();
+      updateSettingsUI();
+    }
   });
 });
 
-// Set today
+// ========== Settings Panel (in Preview Tab) ==========
+function updateSettingsUI() {
+  // Add settings panel if not exists
+  let panel = document.getElementById('settings-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'settings-panel';
+    panel.className = 'settings-panel';
+    panel.innerHTML = `
+      <div class="settings-header" id="settings-toggle">
+        ⚙️ Google Sheets Settings <span id="settings-indicator"></span>
+      </div>
+      <div class="settings-body" id="settings-body" style="display:none;">
+        <label>Sheet ID</label>
+        <input type="text" id="setting-sheet-id" placeholder="Paste your Google Sheet ID" />
+        <label>API Key</label>
+        <input type="password" id="setting-api-key" placeholder="Paste your Google Sheets API Key" />
+        <div class="settings-buttons">
+          <button id="save-settings-btn" class="small-btn">Save Settings</button>
+          <button id="clear-settings-btn" class="small-btn" style="background:#e53935;">Clear</button>
+        </div>
+        <small style="color:#666; display:block; margin-top:8px;">
+          How to get: <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a> → APIs → Sheets API → Credentials
+        </small>
+      </div>
+    `;
+    
+    // Insert before entries container
+    const previewTab = document.getElementById('preview-tab');
+    const entriesDiv = document.getElementById('entries-container');
+    previewTab.insertBefore(panel, entriesDiv.parentNode);
+    
+    // Toggle settings
+    document.getElementById('settings-toggle').addEventListener('click', () => {
+      const body = document.getElementById('settings-body');
+      body.style.display = body.style.display === 'none' ? 'block' : 'none';
+    });
+    
+    // Save settings
+    document.getElementById('save-settings-btn').addEventListener('click', () => {
+      const sheetId = document.getElementById('setting-sheet-id').value.trim();
+      const apiKey = document.getElementById('setting-api-key').value.trim();
+      if (!sheetId || !apiKey) {
+        alert('Both Sheet ID and API Key are required!');
+        return;
+      }
+      saveSettings({ sheetId, apiKey });
+      updateSettingsIndicator();
+      alert('Settings saved! You can now sync.');
+      document.getElementById('settings-body').style.display = 'none';
+    });
+    
+    // Clear settings
+    document.getElementById('clear-settings-btn').addEventListener('click', () => {
+      if (confirm('Remove saved settings?')) {
+        localStorage.removeItem(SETTINGS_KEY);
+        document.getElementById('setting-sheet-id').value = '';
+        document.getElementById('setting-api-key').value = '';
+        updateSettingsIndicator();
+        syncStatus.textContent = 'Settings cleared.';
+        syncStatus.style.color = 'orange';
+      }
+    });
+  }
+  
+  // Load current settings
+  const s = getSettings();
+  document.getElementById('setting-sheet-id').value = s.sheetId || '';
+  document.getElementById('setting-api-key').value = s.apiKey || '';
+  updateSettingsIndicator();
+}
+
+function updateSettingsIndicator() {
+  const indicator = document.getElementById('settings-indicator');
+  if (indicator) {
+    if (isConfigured()) {
+      indicator.textContent = '🟢 Configured';
+      indicator.style.color = 'green';
+    } else {
+      indicator.textContent = '🔴 Not configured';
+      indicator.style.color = 'red';
+    }
+  }
+}
+
+// ========== Set Default Date ==========
 document.getElementById('date').valueAsDate = new Date();
 
-// Live total
+// ========== Live Total ==========
 itemsInput.addEventListener('input', () => {
   const items = parseItems(itemsInput.value);
   const total = items.reduce((sum, it) => sum + it.price, 0);
   liveTotal.textContent = formatCents(total);
 });
 
-// Quick add
+// ========== Quick Add Item ==========
 document.getElementById('quick-add-btn').addEventListener('click', () => {
   const name = document.getElementById('quick-name').value.trim();
   const price = parseFloat(document.getElementById('quick-price').value);
@@ -132,7 +242,7 @@ document.getElementById('quick-add-btn').addEventListener('click', () => {
   document.getElementById('quick-price').value = '';
 });
 
-// Save entry
+// ========== Save Entry ==========
 saveBtn.addEventListener('click', async () => {
   const date = document.getElementById('date').value;
   const type = document.getElementById('type').value;
@@ -166,7 +276,7 @@ saveBtn.addEventListener('click', async () => {
   } catch(e) { alert('Error: '+e.message); }
 });
 
-// Load & filter
+// ========== Load & Filter ==========
 async function loadEntries() {
   const all = await getAllTransactions();
   const q = searchInput.value.toLowerCase();
@@ -202,7 +312,7 @@ function renderEntries(entries) {
     const itemsStr = tx.items.map(i => `${i.name} ${formatCents(i.price)}`).join(', ');
     const partyStr = tx.party ? ` | Party: ${tx.party}` : '';
     const notesStr = tx.cashNotes?.length ? ' | Notes: '+tx.cashNotes.join(', ') : '';
-    const synced = tx.isSynced ? ' (synced)' : '';
+    const synced = tx.isSynced ? ' ✅' : '';
     return `
       <div class="entry-card">
         <div class="entry-row">
@@ -227,20 +337,20 @@ function renderEntries(entries) {
   });
 }
 
-// Party suggestions
+// ========== Party Suggestions ==========
 async function updatePartySuggestions() {
   const all = await getAllTransactions();
   const parties = [...new Set(all.map(tx => tx.party).filter(Boolean))];
   partySuggestions.innerHTML = parties.map(p => `<option value="${p}">`).join('');
 }
 
-// Event listeners
+// ========== Event Listeners ==========
 [searchInput, filterType, filterMode, filterCategory, filterParty, filterDate].forEach(el => {
   el.addEventListener('input', loadEntries);
   el.addEventListener('change', loadEntries);
 });
 
-// Export JSON
+// ========== Export JSON ==========
 document.getElementById('export-json-btn').addEventListener('click', async () => {
   const all = await getAllTransactions();
   const blob = new Blob([JSON.stringify(all, null, 2)], {type:'application/json'});
@@ -250,7 +360,7 @@ document.getElementById('export-json-btn').addEventListener('click', async () =>
   a.click();
 });
 
-// Import JSON
+// ========== Import JSON ==========
 document.getElementById('import-json-btn').addEventListener('click', () => {
   document.getElementById('import-json-input').click();
 });
@@ -265,7 +375,6 @@ document.getElementById('import-json-input').addEventListener('change', async (e
     let imported = 0;
     for (const tx of data) {
       if (!tx.date || !tx.type) continue;
-      // Normalize items – handle both old format {name, price} and new format
       const items = (tx.items || []).map(it => ({
         name: it.name || it.itemName || 'Unknown',
         price: typeof it.price === 'number' ? it.price : 0
@@ -281,106 +390,104 @@ document.getElementById('import-json-input').addEventListener('change', async (e
         cashNotes: tx.cashNotes || [],
         note: tx.note || '',
         createdAt: tx.createdAt || Date.now(),
-        isSynced: false  // Always import as unsynced so you can sync them
+        isSynced: false
       });
       imported++;
     }
-    alert(`Successfully imported ${imported} entries.`);
+    alert(`Imported ${imported} entries!`);
     loadEntries();
     updatePartySuggestions();
   } catch(err) {
     alert('Import failed: ' + err.message);
-    console.error(err);
   }
-  e.target.value = ''; // reset file input
+  e.target.value = '';
 });
 
-// Google Sheets Sync
-const SYNC_URL_KEY = 'sheets_sync_url';
-function getSyncUrl() {
-  let url = localStorage.getItem(SYNC_URL_KEY);
-  if (!url) {
-    url = prompt('Enter Google Apps Script web app URL:');
-    if (url) localStorage.setItem(SYNC_URL_KEY, url);
-  }
-  return url;
-}
-
+// ========== Google Sheets Sync (Direct API) ==========
 document.getElementById('sync-btn').addEventListener('click', async () => {
-  const url = getSyncUrl();
-  if (!url) {
-    syncStatus.textContent = 'No sync URL configured.';
+  if (!isConfigured()) {
+    syncStatus.textContent = 'Configure Sheet ID & API Key first!';
     syncStatus.style.color = 'red';
+    document.getElementById('settings-body').style.display = 'block';
     return;
   }
 
   if (!navigator.onLine) {
-    syncStatus.textContent = 'You are offline. Entries will sync later.';
+    syncStatus.textContent = 'You are offline.';
     syncStatus.style.color = 'orange';
     return;
   }
 
+  const { sheetId, apiKey } = getSettings();
   const unsynced = await getUnsynced();
+  
   if (!unsynced.length) {
-    syncStatus.textContent = 'All entries already synced.';
+    syncStatus.textContent = 'All entries synced!';
     syncStatus.style.color = 'green';
     return;
   }
-
-  const payload = unsynced.map(tx => ({
-    date: tx.date,
-    type: tx.type,
-    mode: tx.mode,
-    category: tx.category,
-    party: tx.party || '',
-    items: tx.items,
-    totalAmount: tx.totalAmount,
-    cashNotes: tx.cashNotes || [],
-    note: tx.note || '',
-    createdAt: tx.createdAt
-  }));
 
   syncStatus.textContent = `Syncing ${unsynced.length} entries...`;
   syncStatus.style.color = 'blue';
 
   try {
+    const rows = unsynced.map(tx => {
+      const itemsStr = tx.items.map(it => `${it.name}:${it.price}`).join('; ');
+      const notesStr = (tx.cashNotes || []).join(', ');
+      return [
+        tx.date,
+        tx.type,
+        tx.mode,
+        tx.category,
+        tx.party || '',
+        itemsStr,
+        tx.totalAmount,
+        notesStr,
+        tx.note || '',
+        new Date(tx.createdAt).toLocaleString()
+      ];
+    });
+
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Transactions!A:J:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${apiKey}`;
+    
     const res = await fetch(url, {
       method: 'POST',
-      body: JSON.stringify(payload),
-      headers: {'Content-Type': 'application/json'},
-      mode: 'cors'
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: rows })
     });
 
     if (!res.ok) {
-      throw new Error(`Server responded with ${res.status}: ${res.statusText}`);
+      const errText = await res.text();
+      throw new Error(`API Error: ${res.status} - ${errText}`);
     }
 
     const result = await res.json();
-    if (result.status === 'success') {
-      for (const tx of unsynced) await markSynced(tx.id);
-      syncStatus.textContent = `Successfully synced ${unsynced.length} entries!`;
-      syncStatus.style.color = 'green';
-      loadEntries();
-    } else {
-      throw new Error(result.message || 'Unknown error from server');
-    }
+    const syncedCount = result.updates?.updatedRows || unsynced.length;
+
+    for (const tx of unsynced) await markSynced(tx.id);
+    
+    syncStatus.textContent = `Synced ${syncedCount} entries!`;
+    syncStatus.style.color = 'green';
+    loadEntries();
+    
   } catch(err) {
-    syncStatus.textContent = `Sync failed: ${err.message}`;
+    syncStatus.textContent = `Failed: ${err.message}`;
     syncStatus.style.color = 'red';
     console.error('Sync error:', err);
   }
 });
 
-// Reset Google Sheets URL
+// ========== Reset Sheet URL (Legacy Support) ==========
 document.getElementById('reset-sync-btn').addEventListener('click', () => {
-  if (confirm('Clear stored Google Sheets URL? You will need to re-enter it on next sync.')) {
-    localStorage.removeItem(SYNC_URL_KEY);
-    syncStatus.textContent = 'URL cleared. Click Sync to enter a new URL.';
+  if (confirm('Clear all Google Sheets settings?')) {
+    localStorage.removeItem(SETTINGS_KEY);
+    updateSettingsUI();
+    syncStatus.textContent = 'Settings cleared.';
     syncStatus.style.color = 'orange';
   }
 });
 
-// Init
+// ========== Init ==========
 openDB().then(() => {
   updatePartySuggestions();
   loadEntries();
