@@ -1,6 +1,6 @@
 // ========== IndexedDB ==========
 const DB_NAME = 'ExpenseTrackerDB';
-const DB_VERSION = 3; // bump for party field
+const DB_VERSION = 3;
 let db;
 
 function openDB() {
@@ -27,7 +27,7 @@ function addTransaction(tx) {
   return new Promise((resolve, reject) => {
     const t = db.transaction('transactions', 'readwrite');
     const store = t.objectStore('transactions');
-    const req = store.add({ ...tx, isSynced: false });
+    const req = store.add({ ...tx, isSynced: tx.isSynced !== undefined ? tx.isSynced : false });
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -150,7 +150,8 @@ saveBtn.addEventListener('click', async () => {
     totalAmount: total,
     cashNotes: notes,
     note: generalNote.value.trim(),
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    isSynced: false
   };
   try {
     await addTransaction(tx);
@@ -161,7 +162,8 @@ saveBtn.addEventListener('click', async () => {
     liveTotal.textContent = '0.00';
     partyInput.value = '';
     document.getElementById('date').valueAsDate = new Date();
-  } catch(e) { alert('Error: '+e); }
+    updatePartySuggestions();
+  } catch(e) { alert('Error: '+e.message); }
 });
 
 // Load & filter
@@ -225,14 +227,11 @@ function renderEntries(entries) {
   });
 }
 
-// Populate party suggestions
+// Party suggestions
 async function updatePartySuggestions() {
   const all = await getAllTransactions();
   const parties = [...new Set(all.map(tx => tx.party).filter(Boolean))];
   partySuggestions.innerHTML = parties.map(p => `<option value="${p}">`).join('');
-  document.querySelectorAll('[list="party-suggestions"]').forEach(inp => {
-    // already set
-  });
 }
 
 // Event listeners
@@ -252,6 +251,10 @@ document.getElementById('export-json-btn').addEventListener('click', async () =>
 });
 
 // Import JSON
+document.getElementById('import-json-btn').addEventListener('click', () => {
+  document.getElementById('import-json-input').click();
+});
+
 document.getElementById('import-json-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -261,30 +264,38 @@ document.getElementById('import-json-input').addEventListener('change', async (e
     if (!Array.isArray(data)) throw new Error('JSON must be an array');
     let imported = 0;
     for (const tx of data) {
-      // minimal validation
       if (!tx.date || !tx.type) continue;
+      // Normalize items – handle both old format {name, price} and new format
+      const items = (tx.items || []).map(it => ({
+        name: it.name || it.itemName || 'Unknown',
+        price: typeof it.price === 'number' ? it.price : 0
+      }));
       await addTransaction({
         date: tx.date,
-        type: tx.type,
+        type: tx.type || 'expense',
         party: tx.party || '',
         mode: tx.mode || 'cash',
         category: tx.category || 'other',
-        items: tx.items || [],
-        totalAmount: tx.totalAmount || 0,
+        items: items,
+        totalAmount: tx.totalAmount || items.reduce((s, i) => s + i.price, 0),
         cashNotes: tx.cashNotes || [],
         note: tx.note || '',
-        createdAt: tx.createdAt || Date.now()
+        createdAt: tx.createdAt || Date.now(),
+        isSynced: false  // Always import as unsynced so you can sync them
       });
       imported++;
     }
-    alert(`Imported ${imported} entries.`);
+    alert(`Successfully imported ${imported} entries.`);
     loadEntries();
     updatePartySuggestions();
-  } catch(err) { alert('Import failed: '+err.message); }
+  } catch(err) {
+    alert('Import failed: ' + err.message);
+    console.error(err);
+  }
   e.target.value = ''; // reset file input
 });
 
-// Sync
+// Google Sheets Sync
 const SYNC_URL_KEY = 'sheets_sync_url';
 function getSyncUrl() {
   let url = localStorage.getItem(SYNC_URL_KEY);
@@ -297,17 +308,21 @@ function getSyncUrl() {
 
 document.getElementById('sync-btn').addEventListener('click', async () => {
   const url = getSyncUrl();
-  if (!url) return;
+  if (!url) {
+    syncStatus.textContent = 'No sync URL configured.';
+    syncStatus.style.color = 'red';
+    return;
+  }
 
   if (!navigator.onLine) {
-    syncStatus.textContent = 'Offline – will sync later.';
+    syncStatus.textContent = 'You are offline. Entries will sync later.';
     syncStatus.style.color = 'orange';
     return;
   }
 
   const unsynced = await getUnsynced();
   if (!unsynced.length) {
-    syncStatus.textContent = 'All synced!';
+    syncStatus.textContent = 'All entries already synced.';
     syncStatus.style.color = 'green';
     return;
   }
@@ -317,40 +332,51 @@ document.getElementById('sync-btn').addEventListener('click', async () => {
     type: tx.type,
     mode: tx.mode,
     category: tx.category,
-    party: tx.party,
+    party: tx.party || '',
     items: tx.items,
     totalAmount: tx.totalAmount,
-    cashNotes: tx.cashNotes,
-    note: tx.note,
+    cashNotes: tx.cashNotes || [],
+    note: tx.note || '',
     createdAt: tx.createdAt
   }));
 
+  syncStatus.textContent = `Syncing ${unsynced.length} entries...`;
+  syncStatus.style.color = 'blue';
+
   try {
-    syncStatus.textContent = 'Syncing...';
-    syncStatus.style.color = 'blue';
     const res = await fetch(url, {
       method: 'POST',
       body: JSON.stringify(payload),
-      headers: {'Content-Type':'application/json'}
+      headers: {'Content-Type': 'application/json'},
+      mode: 'cors'
     });
+
+    if (!res.ok) {
+      throw new Error(`Server responded with ${res.status}: ${res.statusText}`);
+    }
+
     const result = await res.json();
     if (result.status === 'success') {
       for (const tx of unsynced) await markSynced(tx.id);
-      syncStatus.textContent = `Synced ${unsynced.length} entries.`;
+      syncStatus.textContent = `Successfully synced ${unsynced.length} entries!`;
       syncStatus.style.color = 'green';
       loadEntries();
-    } else throw new Error(result.message || 'Unknown');
+    } else {
+      throw new Error(result.message || 'Unknown error from server');
+    }
   } catch(err) {
-    syncStatus.textContent = `Failed: ${err.message}`;
+    syncStatus.textContent = `Sync failed: ${err.message}`;
     syncStatus.style.color = 'red';
+    console.error('Sync error:', err);
   }
 });
 
 // Reset Google Sheets URL
 document.getElementById('reset-sync-btn').addEventListener('click', () => {
-  if (confirm('Clear stored Google Sheets URL?')) {
+  if (confirm('Clear stored Google Sheets URL? You will need to re-enter it on next sync.')) {
     localStorage.removeItem(SYNC_URL_KEY);
-    alert('URL cleared. Next sync will ask again.');
+    syncStatus.textContent = 'URL cleared. Click Sync to enter a new URL.';
+    syncStatus.style.color = 'orange';
   }
 });
 
@@ -360,7 +386,4 @@ openDB().then(() => {
   loadEntries();
 }).catch(console.error);
 
-// Update party suggestions when entering data (optional)
-partyInput.addEventListener('input', async () => {
-  // could filter suggestions, but just using datalist
-});
+partyInput.addEventListener('input', updatePartySuggestions);
