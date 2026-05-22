@@ -1,77 +1,47 @@
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: system-ui, sans-serif;
-  background: #f5f5f5;
-  display: flex;
-  justify-content: center;
-  padding: 20px;
-}
-.container {
-  max-width: 600px;
-  width: 100%;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+/* Settings Panel */
+.settings-panel {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 16px;
   overflow: hidden;
 }
-.tabs { display: flex; border-bottom: 2px solid #e0e0e0; }
-.tab {
-  flex: 1; text-align: center; padding: 16px; cursor: pointer;
-  font-weight: 600; color: #666; transition: 0.2s;
+.settings-header {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.tab.active { color: #1a73e8; border-bottom: 3px solid #1a73e8; }
-.tab-content { padding: 20px; display: none; }
-.tab-content.active { display: block; }
-
-label { font-weight: 600; display: block; margin-top: 12px; }
-input, select, textarea {
-  width: 100%; padding: 10px; margin-top: 6px;
-  border: 1px solid #ccc; border-radius: 8px; font-size: 16px;
+.settings-header:hover {
+  background: #f0f0f0;
 }
-textarea { resize: vertical; height: 120px; }
-.live-total { margin-top: 12px; font-size: 18px; font-weight: bold; }
-button {
-  background: #1a73e8; color: white; border: none;
-  padding: 12px 20px; border-radius: 8px; font-size: 16px;
-  cursor: pointer; margin-top: 16px; width: 100%;
+.settings-body {
+  padding: 16px;
+  border-top: 1px solid #ddd;
 }
-button:hover { background: #1557b0; }
-.danger-btn { background: #e53935; }
-.danger-btn:hover { background: #b71c1c; }
-.small-btn {
-  background: #ff9800; color: white; padding: 8px 12px; border-radius: 8px;
-  font-size: 14px; width: auto;
-}
-
-.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-.filter-bar input, .filter-bar select { flex: 1; min-width: 100px; }
-.entry-card {
-  background: #fafafa; border: 1px solid #eee;
-  border-radius: 8px; padding: 12px; margin-bottom: 10px;
-}
-.entry-row { display: flex; justify-content: space-between; align-items: center; }
-.entry-details { font-size: 14px; color: #444; }
-.delete-btn {
-  background: #e53935; color: white; border: none;
-  padding: 6px 12px; border-radius: 6px; cursor: pointer;
-}
-.delete-btn:hover { background: #b71c1c; }
-.search-box { width: 100%; padding: 10px; margin-bottom: 16px; border-radius: 8px; border: 1px solid #ccc; }
-.no-entries { text-align: center; padding: 40px; color: #999; }
-.quick-add { display: flex; gap: 8px; align-items: end; margin-top: 12px; }
-.quick-add input { flex: 1; }
-.quick-add button { width: auto; margin: 0; }
-.sync-status { margin-top: 8px; font-size: 14px; color: green; }
-.action-row {
-  display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap;
-}
-.action-row button {
-  width: auto;
-  padding: 10px 16px;
+.settings-body label {
+  margin-top: 8px;
   font-size: 14px;
-  margin-top: 0;
 }
-.import-btn {
-  background: #4caf50; color: white; padding: 10px 16px; border-radius: 8px;
-  cursor: pointer; font-size: 14px; display: inline-block;
+.settings-body input {
+  margin-top: 4px;
+  padding: 8px;
+  font-size: 14px;
+}
+.settings-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.settings-buttons button {
+  flex: 1;
+  margin-top: 0;
+  padding: 8px;
+  font-size: 14px;
+}
+#settings-indicator {
+  font-size: 13px;
+  font-weight: normal;
 }
